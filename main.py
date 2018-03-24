@@ -117,5 +117,5 @@ if __name__ == '__main__':
 
         print('The winner is {}'.format(game.get_winner()))
 
-
+    #start()
     socketio.run(app, port=5001)

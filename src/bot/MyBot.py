@@ -43,7 +43,7 @@ class MyBot(Bot):
         self.other_bots = None
 
         self.reward_expectation = 1
-        self.risk_of_injury = 0.02
+        self.risk_of_injury = 0.5
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
@@ -53,6 +53,81 @@ class MyBot(Bot):
     def get_name(self):
         # Find a name for your bot
         return 'My bot'
+
+    def best_path(self, players, start, goal):
+        players_pos = {}
+        for player in players:
+          players_pos[player['location']] = True
+
+        def can_pass_through(node):
+            symbol = self.gs_array[node[0]][node[1]]
+            return (symbol == '0' or symbol == 'S' or symbol == 'J') and not (node in players_pos)
+
+        def symbol_weight(node):
+            symbol = self.gs_array[node[0]][node[1]]
+            if symbol == 'S':
+                return 10 / self.risk_of_injury
+            return 1
+
+        q = queue.PriorityQueue()
+        q.put((0, start, None))
+        visited = {}
+        node = None
+        while not q.empty():
+            priority, node, previous = q.get()
+            if node in visited:
+                continue
+            visited[node] = previous
+            if node == goal:
+                break
+
+            directions = []
+            if node[0] >= 0:
+                directions.append((-1, 0))
+            if node[1] >= 0:
+                directions.append((0, -1))
+            if node[0] < len(self.gs_array):
+                directions.append((1, 0))
+            if node[1] < len(self.gs_array[node[0]]):
+                directions.append((0, 1))
+
+            for direction in directions:
+                next_node = (node[0] + direction[0], node[1] + direction[1])
+                if next_node in visited:
+                    continue
+                if can_pass_through(next_node) or next_node == goal:
+                    next_priority = priority + symbol_weight(next_node)
+                    q.put((next_priority, next_node, node))
+
+        if node is None or node != goal:
+            return None
+        path = []
+        while node is not None:
+            path.append(node)
+            previous_node = visited[node]
+            node = previous_node
+
+        return list(reversed(path))
+
+    def path_distance(self, players, start, goal):
+        path = self.best_path(players, start, goal)
+        return len(path)
+
+    @staticmethod
+    def convert_node_to_direction(path):
+        if path is None or len(path) < 2:
+            return None
+
+        start = path[0]
+        next = path[1]
+        if start[1] == next[1] + 1:
+            return 'W'
+        elif start[1] == next[1] - 1:
+            return 'E'
+        elif start[0] == next[0] + 1:
+            return 'N'
+        else:
+            return 'S'
 
     def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
         if 1000 - turn <= distance_to_base + 1:
@@ -101,8 +176,13 @@ class MyBot(Bot):
             # material:
             # oponent
 
+
         #print(str(self.best_ressource))
-        direction = self.pathfinder.get_next_direction(self.character_state['location'], self.best_ressource)
+        print(character_state['location'], self.best_ressource)
+        path = self.best_path(other_bots, character_state['location'], self.best_ressource)
+        print(path)
+        direction = self.convert_node_to_direction(path)
+        print('direction', direction)
         if direction:
             return self.commands.move(direction)
         else:
