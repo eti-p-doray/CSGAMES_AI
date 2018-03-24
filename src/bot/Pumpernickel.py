@@ -45,7 +45,7 @@ class PlayerEavesdrop:
         return None
 
 
-class MyBot(Bot):
+class Pumpernickel(Bot):
 
     def __init__(self):
         super().__init__()
@@ -59,7 +59,7 @@ class MyBot(Bot):
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
-        self.average_reward = 8
+        self.average_reward = 4
         self.capacity = 500
         self.risk_health = 11
 
@@ -71,23 +71,19 @@ class MyBot(Bot):
         return 'Pumpernickel'
 
     def best_path(self, character_health, character_carrying, start, goal):
-        players_by_pos = {}
-        for player in self.other_bots:
-          players_by_pos[player['location']] = player
-
         def can_pass_through(node):
             symbol = self.gs_array[node[0]][node[1]]
             return (symbol == '0' or symbol == 'S' or symbol == 'J')
 
         def symbol_weight(current_ch_health, node):
             weight = 0
-            if node in players_by_pos:
-                fight_duration = players_by_pos[node]['health'] / self.attack_dammage
+            if node in self.players_by_pos:
+                fight_duration = self.players_by_pos[node]['health'] / self.attack_dammage
                 weight += fight_duration
-                if character_health < players_by_pos[node]['health']:
+                if character_health < self.players_by_pos[node]['health']:
                     weight += self.respawn_time + character_carrying / self.average_reward
             symbol = self.gs_array[node[0]][node[1]]
-            if symbol == 'S':
+            if symbol == 'S' and current_ch_health > 0:
                 weight += 100 / current_ch_health
             return 1 + weight
 
@@ -164,6 +160,10 @@ class MyBot(Bot):
     def turn(self, game_state, character_state, other_bots):
         super().turn(game_state, character_state, other_bots)
 
+        self.players_by_pos = {}
+        for player in self.other_bots:
+          self.players_by_pos[player['location']] = player
+
         self.current_turn += 1
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
@@ -202,6 +202,8 @@ class MyBot(Bot):
             return self.commands.collect()
         else:
             path = self.best_path(character_state['health'], character_state['carrying'], character_state['location'], ressource['pos'])
+            if path[1] in self.players_by_pos:
+                return self.commands.attack(direction)
             direction = self.convert_node_to_direction(path)
             return self.commands.move(direction)
 
