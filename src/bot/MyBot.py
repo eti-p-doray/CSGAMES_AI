@@ -40,19 +40,21 @@ class MyBot(Bot):
         self.danger_zone = []
         self.gs_array = None
         self.current_turn = 0
+        self.other_bots = None
 
         self.reward_expectation = 1
         self.risk_of_injury = 0.02
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
+        self.enemy_distance_to_flee = 4
 
 
     def get_name(self):
         # Find a name for your bot
         return 'My bot'
 
-    def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base):
+    def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
         if 1000 - turn <= distance_to_base + 1:
           return True
         risk_of_dying = self.risk_of_injury / character_health * distance_to_base
@@ -63,8 +65,9 @@ class MyBot(Bot):
         # cost of going back to base
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
-        return total_risk > loss
-
+        if total_risk > loss:
+            return distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
+        return False
 
     def attack_opponent_utility(self,
             character_health, character_carrying,
@@ -77,6 +80,7 @@ class MyBot(Bot):
         return reward - loss * self.reward_expectation
 
     def turn(self, game_state, character_state, other_bots):
+        self.other_bots = other_bots
         self.current_turn += 1
         super().turn(game_state, character_state, other_bots)
         if not self.gs_array:
@@ -123,11 +127,12 @@ class MyBot(Bot):
 
     def find_reward_per_junk(self, ch_state, junk_position, junk_average):
         nb_tours = self.distance_between_two_points(ch_state['location'], junk_position)
+        #TODO prendre en compte les tiles qu'on sait qu'on va se blesser en y allant
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
         distance_to_base = self.distance_between_two_points(junk_position, ch_state['base'])
-        while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
+        while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base, junk_position):
             current_sim_gain += junk_average
             nb_tours += 1
             current_sim_turn += 1
@@ -135,10 +140,8 @@ class MyBot(Bot):
         nb_tours +=  distance_to_base + 1
         return current_sim_gain / nb_tours
 
-
     def distance_between_two_points(self, a, b):
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
 
     def to_array(self, game_state):
         array = []
@@ -155,3 +158,11 @@ class MyBot(Bot):
                 array.append([])
                 i += 1
         return array
+
+    def distance_to_closest_enemy(self, character_position):
+        min = distance_between_two_points(character_position, self.other_bots[0]['location'])
+        for i in range(1, len(self.other_bots)):
+            dist = distance_between_two_points(character_position, self.other_bots[i]['location'])
+            if dist < min:
+                min = dist
+        return min
