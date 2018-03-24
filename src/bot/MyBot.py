@@ -2,6 +2,7 @@ from src.bot.Bot import Bot
 
 import math
 import queue
+import itertools
 
 class JunkMLEstimation:
     def __init__(self):
@@ -31,6 +32,19 @@ class JunkMLEstimation:
               math.log(variance * math.sqrt(2*math.pi)))
 
 
+class PlayerEavesdrop:
+    def __init__(self):
+        self.previous_ressources = 0
+
+    def update(self, player):
+        if player['carrying'] > self.previous_ressources:
+            last_reward = player['carrying'] - self.previous_ressources
+            self.previous_ressources = player['carrying']
+            return last_reward
+        self.previous_ressources = player['carrying']
+        return None
+
+
 class MyBot(Bot):
 
     def __init__(self):
@@ -39,15 +53,14 @@ class MyBot(Bot):
         self.danger_zone = []
         self.gs_array = None
         self.current_turn = 0
-        self.other_bots = None
-        self.last_action = "idle"
+        self.player_eavesdrops = {}
 
         self.risk_of_injury = 4
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
         self.capacity = 500
-        self.risk_health = 40
+        self.risk_health = 41
 
 
     def get_name(self):
@@ -137,27 +150,29 @@ class MyBot(Bot):
         return (dx == 0 and dy == 1 or dx == 1 and dy == 0)
 
     def turn(self, game_state, character_state, other_bots):
-        self.log_last_gain(character_state)
-        self.last_ressources = character_state['carrying']
-        self.other_bots = other_bots
-        self.current_turn += 1
         super().turn(game_state, character_state, other_bots)
+
+        self.current_turn += 1
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
+            for player in itertools.chain([character_state], other_bots):
+                self.player_eavesdrops[player['id']] = PlayerEavesdrop()
+
+        for player in itertools.chain([character_state], other_bots):
+            reward = self.player_eavesdrops[player['id']].update(player)
+            if reward is not None and player['location'] in self.junks:
+                self.junks[player['location']].add_observation(reward)
 
         if character_state['location'] == character_state['base']:
             if character_state['carrying'] != 0:
-                self.last_action = "store"
                 return self.commands.store()
             if character_state['health'] != 100:
-                self.last_action = "rest"
                 return self.commands.rest()
 
         path_to_base = self.best_path(character_state['location'], character_state['base'])
         if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base), character_state['location']):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
-            self.last_action = "move"
             return self.commands.move(direction)
 
         ressource = self.find_best_ressource(character_state)
@@ -165,27 +180,19 @@ class MyBot(Bot):
         for opponent in other_bots:
             reward = self.attack_opponent_reward(character_state, opponent)
             if reward is not None and reward > ressource['reward']:
+                print("Attacking")
                 direction = self.convert_node_to_direction([character_state['location'], opponent['location']])
-                self.last_action = "attack"
                 return self.commands.attack(direction)
 
         print("Farming")
         if character_state['location'] == ressource['pos']:
-            self.last_action = "collect"
             return self.commands.collect()
         else:
             path = self.best_path(character_state['location'], ressource['pos'])
             direction = self.convert_node_to_direction(path)
-            self.last_action = "move"
             return self.commands.move(direction)
 
-        self.last_action = "idle"
         return self.commands.idle()
-
-    def log_last_gain(self, character_state):
-        if "collect" != self.last_action:
-            return
-        self.junks[character_state['location']].add_observation(character_state['carrying'] - self.last_ressources)
 
     def attack_opponent_reward(self, ch_state, victim):
         if not self.neighbor(ch_state['location'], victim['location']):
