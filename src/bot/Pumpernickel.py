@@ -55,12 +55,14 @@ class Pumpernickel(Bot):
         self.current_turn = 0
         self.player_eavesdrops = {}
 
-        self.risk_of_injury = 4
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
-        self.average_reward = 4
+
+        # Adjustable
         self.capacity = 500
+        self.average_reward = 4
+        self.risk_of_injury = 4
         self.risk_health = 11
 
 
