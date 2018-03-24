@@ -45,7 +45,7 @@ class PlayerEavesdrop:
         return None
 
 
-class MyBot(Bot):
+class Pumpernickel(Bot):
 
     def __init__(self):
         super().__init__()
