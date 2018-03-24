@@ -176,6 +176,8 @@ class MyBot(Bot):
         return (dx == 0 and dy == 1 or dx == 1 and dy == 0)
 
     def turn(self, game_state, character_state, other_bots):
+        self.log_last_gain(character_state)
+        self.last_ressources = character_state['carrying']
         self.other_bots = other_bots
         self.current_turn += 1
         super().turn(game_state, character_state, other_bots)
@@ -229,7 +231,10 @@ class MyBot(Bot):
         self.last_action = "idle"
         return self.commands.idle()
 
-
+    def log_last_gain(self, character_state):
+        if "collect" != self.last_action:
+            return
+        self.junks[character_state['location']].add_observation(character_state['carrying'] - self.last_ressources)
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
     def find_best_ressource(self, ch_state):
