@@ -60,7 +60,7 @@ class Pumpernickel(Bot):
         self.attack_dammage = 10
 
         # Adjustable
-        self.capacity = 500
+        self.capacity = 1000
         self.average_reward = 4
         self.risk_of_injury = 4
         self.risk_health = 11
@@ -204,9 +204,9 @@ class Pumpernickel(Bot):
             return self.commands.collect()
         else:
             path = self.best_path(character_state['health'], character_state['carrying'], character_state['location'], ressource['pos'])
+            direction = self.convert_node_to_direction(path)
             if path[1] in self.players_by_pos:
                 return self.commands.attack(direction)
-            direction = self.convert_node_to_direction(path)
             return self.commands.move(direction)
 
         return self.commands.idle()
