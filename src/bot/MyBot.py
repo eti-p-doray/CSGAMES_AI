@@ -79,15 +79,12 @@ class MyBot(Bot):
         super().turn(game_state, character_state, other_bots)
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
-<<<<<<< HEAD
-=======
 
         if character_state['location'] == character_state['base']:
             if character_state['carrying'] != 0:
                 return self.commands.store()
             if character_state['health'] != 100:
                 return self.commands.rest()
->>>>>>> 1ea621421496b8ee3d07820dfd339c5f4e7d578d
 
         self.closest_ressource = self.find_closest_ressource(character_state)
 
