@@ -202,7 +202,7 @@ class MyBot(Bot):
         ressource = self.find_best_ressource(character_state)
         victim = self.find_best_victim(character_state, other_bots)
 
-        if ressource['reward'] > victim['reward']:
+        if ressource['reward'] > 0:
             print("Farming")
             if character_state['location'] == ressource['pos']:
                 self.last_action = "collect"
@@ -212,7 +212,8 @@ class MyBot(Bot):
                 direction = self.convert_node_to_direction(path)
                 self.last_action = "move"
                 return self.commands.move(direction)
-        """elif victim['reward'] > 10:
+
+        elif victim['reward'] > 10:
             print("Attacking")
             victim_location = other_bots[victim['idx']]['location']
             if self.neighbor(character_state['location'], victim_location):
@@ -220,8 +221,8 @@ class MyBot(Bot):
             else:
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
-                self.last_action = "move"
-                return self.commands.move(direction)"""
+                return self.commands.move(direction)
+
 
         else:
             direction = self.convert_node_to_direction(path_to_base)
@@ -238,27 +239,17 @@ class MyBot(Bot):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
-            if best["pos"] is (-1,-1):
-                best["pos"] = pos
-                best["reward"] = self.junk_reward(ch_state, pos, ml.params()[0])
-            else:
-                reward = self.junk_reward(ch_state, pos, ml.params()[0])
-                if reward > best["reward"]:
-                    if not self.is_tile_occupied(pos):
-                        best["pos"] = pos
-                        best["reward"] = reward
-
-        for bot in self.other_bots:
-            reward = self.attack_opponent_reward(ch_state, bot)
-            if reward > best["reward"]:
-                best["pos"] = pos
-                best["reward"] = reward
+            reward = self.junk_reward(ch_state, pos, ml.params()[0])
+            if best["pos"] is (-1,-1) or reward > best["reward"]:
+                if not self.is_tile_occupied(pos):
+                    best["pos"] = pos
+                    best["reward"] = reward
 
         return best
 
     def is_tile_occupied(self, tile_position):
         for player in self.other_bots:
-            if player["location"] is tile_position:
+            if player["location"] == tile_position:
                 return True
         return False
 
