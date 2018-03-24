@@ -7,6 +7,7 @@ class MyBot(Bot):
         super().__init__()
         self.closest_ressource = (0, 0)
         self.junks = []
+        self.gs_array = None
 
     def get_name(self):
         # Find a name for your bot
@@ -15,10 +16,17 @@ class MyBot(Bot):
     def turn(self, game_state, character_state, other_bots):
         # Your bot logic goes here
         super().turn(game_state, character_state, other_bots)
-        gs_array = self.to_array(game_state)
+        if not self.gs_array:
+            self.gs_array = self.to_array(game_state)
+
         self.closest_ressource = self.find_closest_ressource(character_state)
         #print(str(self.closest_ressource))
-        return self.commands.idle()
+        direction = self.pathfinder.get_next_direction(self.character_state['location'], self.closest_ressource)
+        if direction:
+            return self.commands.move(direction)
+        else:
+            return self.commands.idle()
+
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
