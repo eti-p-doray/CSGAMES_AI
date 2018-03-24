@@ -7,6 +7,7 @@ class MyBot(Bot):
         super().__init__()
         self.closest_ressource = (0, 0)
         self.junks = []
+        self.danger_zone = []
         self.gs_array = None
 
     def get_name(self):
@@ -51,6 +52,8 @@ class MyBot(Bot):
                 array[i].append(c)
                 if c is 'J':
                     self.junks.append((i, len(array[i])-1))
+                if c is 'S':
+                    self.danger_zone.append((i, len(array[i])-1))
             else:
                 array.append([])
                 i += 1
