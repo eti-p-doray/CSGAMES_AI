@@ -163,7 +163,7 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        self.best_ressource = self.find_best_ressource(character_state)
+        self.best_ressource = self.find_best_ressource(character_state, other_bots)
 
         # if low on health + high on ressource, go to base
 
@@ -187,26 +187,28 @@ class MyBot(Bot):
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
-    def find_best_ressource(self, ch_state):
+    def find_best_ressource(self, ch_state, other_bots):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
             if best["pos"] is (-1,-1):
                 best["pos"] = pos
-                best["reward"] = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
+                best["reward"] = self.find_reward_per_junk(ch_state, other_bots, pos, ml.params()[0])
             else:
-                reward = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
+                reward = self.find_reward_per_junk(ch_state, other_bots, pos, ml.params()[0])
                 if reward > best["reward"]:
                     best["pos"] = pos
                     best["reward"] = reward
         return best["pos"]
 
-    def find_reward_per_junk(self, ch_state, junk_position, junk_average):
-        nb_tours = self.distance_between_two_points(ch_state['location'], junk_position)
+    def find_reward_per_junk(self, ch_state, other_bots, junk_position, junk_average):
+        path_to_junk = self.best_path(other_bots, ch_state['location'], junk_position)
+        nb_tours = len(path_to_junk)
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
-        distance_to_base = self.distance_between_two_points(junk_position, ch_state['base'])
+        path_to_base = self.best_path(other_bots, junk_position, ch_state['base'])
+        distance_to_base = len(path_to_base)
         while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
             current_sim_gain += junk_average
             nb_tours += 1
@@ -214,10 +216,6 @@ class MyBot(Bot):
             current_sim_health -= self.risk_of_injury
         nb_tours +=  distance_to_base + 1
         return current_sim_gain / nb_tours
-
-
-    def distance_between_two_points(self, a, b):
-        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
     def to_array(self, game_state):
