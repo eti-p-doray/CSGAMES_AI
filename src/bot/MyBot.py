@@ -42,13 +42,12 @@ class MyBot(Bot):
         self.other_bots = None
         self.last_action = "idle"
 
-        self.reward_expectation = 8
         self.risk_of_injury = 2
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
-        self.enemy_distance_to_flee = 4
         self.capacity = 150
+        self.risk_health = 30
 
 
     def get_name(self):
@@ -129,19 +128,7 @@ class MyBot(Bot):
     def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
         if 1000 - turn <= distance_to_base + 1:
           return True
-        """if character_health == 0:
-            return True
-        risk_of_dying = self.risk_of_injury / character_health * distance_to_base
-
-        # risk in reward loss
-        total_risk = (self.reward_expectation * self.respawn_time + character_carrying) * risk_of_dying
-
-        # cost of going back to base
-        loss = (distance_to_base * self.reward_expectation + 1 +
-                (100 - character_health) / self.healing_speed)
-        #print(total_risk, loss)
-        return total_risk > loss"""
-        return character_carrying > self.capacity
+        return character_carrying > self.capacity or character_health < self.risk_health
 
 
     def neighbor(self, ch_pos, other):
@@ -209,8 +196,6 @@ class MyBot(Bot):
         reward = victim['carrying'] / fight_duration
         return reward
 
-#(y,x)
-#{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
     def find_best_ressource(self, ch_state):
         best = {"pos":(-1,-1), "reward":0}
 
