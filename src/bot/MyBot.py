@@ -126,7 +126,7 @@ class MyBot(Bot):
             return 'S'
 
     def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base):
-        if 1000 - turn <= distance_to_base + 1:
+        """if 1000 - turn <= distance_to_base + 1:
           return True
         if character_health == 0:
             return True
@@ -139,7 +139,8 @@ class MyBot(Bot):
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
         #print(total_risk, loss)
-        return total_risk > loss
+        return total_risk > loss"""
+        return character_health < 30 or character_carrying > 150
 
     # To check, might fuck things up because it is coming back with health lower than 0 or something
     def should_presently_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
@@ -156,7 +157,7 @@ class MyBot(Bot):
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
         if total_risk > loss:
-            return self.distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
+            return True#self.distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
         return False
 
     def attack_opponent_reward(self, ch_state, opponent):
@@ -193,7 +194,7 @@ class MyBot(Bot):
                 return self.commands.rest()
 
         path_to_base = self.best_path(character_state['location'], character_state['base'])
-        if self.should_presently_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base), character_state['location']):
+        if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base)):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
             self.last_action = "move"
@@ -202,18 +203,18 @@ class MyBot(Bot):
         ressource = self.find_best_ressource(character_state)
         victim = self.find_best_victim(character_state, other_bots)
 
-        if ressource['reward'] > 0:
-            print("Farming")
-            if character_state['location'] == ressource['pos']:
-                self.last_action = "collect"
-                return self.commands.collect()
-            else:
-                path = self.best_path(character_state['location'], ressource['pos'])
-                direction = self.convert_node_to_direction(path)
-                self.last_action = "move"
-                return self.commands.move(direction)
+        #if ressource['reward'] > 0:
+        print("Farming")
+        if character_state['location'] == ressource['pos']:
+            self.last_action = "collect"
+            return self.commands.collect()
+        else:
+            path = self.best_path(character_state['location'], ressource['pos'])
+            direction = self.convert_node_to_direction(path)
+            self.last_action = "move"
+            return self.commands.move(direction)
 
-        elif victim['reward'] > 10:
+        """elif victim['reward'] > 10:
             print("Attacking")
             victim_location = other_bots[victim['idx']]['location']
             if self.neighbor(character_state['location'], victim_location):
@@ -221,13 +222,7 @@ class MyBot(Bot):
             else:
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
-                return self.commands.move(direction)
-
-
-        else:
-            direction = self.convert_node_to_direction(path_to_base)
-            self.last_action = "move"
-            return self.commands.move(direction)
+                return self.commands.move(direction)"""
 
         self.last_action = "idle"
         return self.commands.idle()
@@ -240,7 +235,7 @@ class MyBot(Bot):
 
         for pos, ml in self.junks.items():
             reward = self.junk_reward(ch_state, pos, ml.params()[0])
-            if best["pos"] is (-1,-1) or reward > best["reward"]:
+            if best["pos"] == (-1,-1) or reward > best["reward"]:
                 if not self.is_tile_occupied(pos):
                     best["pos"] = pos
                     best["reward"] = reward
