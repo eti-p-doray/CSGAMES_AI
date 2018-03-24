@@ -35,16 +35,18 @@ class MyBot(Bot):
 
     def __init__(self):
         super().__init__()
-        self.closest_ressource = (0, 0)
+        self.best_ressource = (0, 0)
         self.junks = []
         self.danger_zone = []
         self.gs_array = None
+        self.current_turn = 0
 
         self.reward_expectation = 1
         self.risk_of_injury = 0.02
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
+
 
     def get_name(self):
         # Find a name for your bot
@@ -75,7 +77,7 @@ class MyBot(Bot):
         return reward - loss * self.reward_expectation
 
     def turn(self, game_state, character_state, other_bots):
-        # Your bot logic goes here
+        self.current_turn += 1
         super().turn(game_state, character_state, other_bots)
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
@@ -86,7 +88,7 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        self.closest_ressource = self.find_closest_ressource(character_state)
+        self.best_ressource = self.find_best_ressource(character_state)
 
         # if low on health + high on ressource, go to base
 
@@ -95,8 +97,8 @@ class MyBot(Bot):
             # material:
             # oponent
 
-        #print(str(self.closest_ressource))
-        direction = self.pathfinder.get_next_direction(self.character_state['location'], self.closest_ressource)
+        #print(str(self.best_ressource))
+        direction = self.pathfinder.get_next_direction(self.character_state['location'], self.best_ressource)
         if direction:
             return self.commands.move(direction)
         else:
@@ -105,16 +107,37 @@ class MyBot(Bot):
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
-    def find_closest_ressource(self, ch_state):
-        closest = (-1,-1)
+    def find_best_ressource(self, ch_state):
+        best = {"pos":(-1,-1), "reward":0}
+
         for pos, ml in self.junks.items():
-            if closest is (-1,-1):
-                closest = pos
+            if best["pos"] is (-1,-1):
+                best["pos"] = pos
+                best["reward"] = find_reward_per_junk(ch_state, pos, ml)
             else:
-                if abs(ch_state['location'][0] - closest[0]) + abs(ch_state['location'][1] -
-                        closest[1]) > abs(ch_state['location'][0] - pos[0]) + abs(ch_state['location'][1] - pos[1]):
-                    closest = pos
-        return closest
+                reward = find_reward_per_junk(ch_state, pos, ml)
+                if reward > best["reward"]:
+                    best["pos"] = pos
+                    best["reward"] = reward
+        return best
+
+    def find_reward_per_junk(self, ch_state, junk_position, junk_average):
+        nb_tours = distance_between_two_points(ch_state['location'], junk_position)
+        current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
+        current_sim_gain = 0
+        current_sim_turn = self.current_turn + nb_tours
+        distance_to_base = distance_between_two_points(junk_position, ch_state['base'])
+        while not should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
+            current_sim_gain += junk_average
+            nb_tours += 1
+            current_sim_turn += 1
+            current_sim_health -= self.risk_of_injury
+        nb_tours +=  distance_to_base + 1
+        return current_gain / nb_tours
+
+
+    def distance_between_two_points(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
     def to_array(self, game_state):
