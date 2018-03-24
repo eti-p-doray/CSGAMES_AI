@@ -41,7 +41,7 @@ class MyBot(Bot):
         self.current_turn = 0
         self.other_bots = None
 
-        self.reward_expectation = 3
+        self.reward_expectation = 8
         self.risk_of_injury = 2
         self.respawn_time = 10
         self.healing_speed = 10
@@ -140,8 +140,7 @@ class MyBot(Bot):
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
         #print(total_risk, loss)
-        #return total_risk > loss
-        return character_carrying > 150 or character_health < 30
+        return total_risk > loss
 
     # To check, might fuck things up because it is coming back with health lower than 0 or something
     def should_presently_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
@@ -189,7 +188,7 @@ class MyBot(Bot):
                 return self.commands.rest()
 
         path_to_base = self.best_path(character_state['location'], character_state['base'])
-        if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base)):
+        if self.should_presently_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base), character_state['location']):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
             return self.commands.move(direction)
@@ -205,7 +204,7 @@ class MyBot(Bot):
                 path = self.best_path(character_state['location'], ressource['pos'])
                 direction = self.convert_node_to_direction(path)
                 return self.commands.move(direction)
-        else:
+        elif victim['reward'] > 10:
             print("Attacking")
             victim_location = other_bots[victim['idx']]['location']
             if self.neighbor(character_state['location'], victim_location):
@@ -214,6 +213,10 @@ class MyBot(Bot):
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
                 return self.commands.move(direction)
+
+        else:
+            direction = self.convert_node_to_direction(path_to_base)
+            return self.commands.move(direction)
 
         return self.commands.idle()
 
