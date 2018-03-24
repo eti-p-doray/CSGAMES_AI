@@ -201,8 +201,15 @@ class MyBot(Bot):
 
         for pos, ml in self.junks.items():
             reward = self.junk_reward(ch_state, pos, ml.params()[0])
-            if best["pos"] == (-1,-1) or reward > best["reward"]:
+            if best["pos"] == (-1,-1) or (reward > best["reward"]):
                 if not self.is_tile_occupied(pos):
+                    best["pos"] = pos
+                    best["reward"] = reward
+
+        if best["pos"] == (-1, -1):
+            for pos, ml in self.junks.items():
+                reward = self.junk_reward(ch_state, pos, ml.params()[0])
+                if best["pos"] == (-1,-1) or (reward > best["reward"]):
                     best["pos"] = pos
                     best["reward"] = reward
 
