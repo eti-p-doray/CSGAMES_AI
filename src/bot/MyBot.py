@@ -36,7 +36,7 @@ class MyBot(Bot):
     def __init__(self):
         super().__init__()
         self.best_ressource = (0, 0)
-        self.junks = []
+        self.junks = {}
         self.danger_zone = []
         self.gs_array = None
         self.current_turn = 0
@@ -55,7 +55,7 @@ class MyBot(Bot):
     def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base):
         if 1000 - turn <= distance_to_base + 1:
           return True
-        risk_of_dying = risk_of_injury / character_health * distance_to_base
+        risk_of_dying = self.risk_of_injury / character_health * distance_to_base
 
         # risk in reward loss
         total_risk = (self.reward_expectation * self.respawn_time + character_carrying) * risk_of_dying
@@ -70,7 +70,7 @@ class MyBot(Bot):
             character_health, character_carrying,
             opponent_health, opponent_carrying,
             distance_to_opponent):
-        if character_health <= opponent_health
+        if character_health <= opponent_health:
             return 0
         loss = distance_to_opponent + opponent_health / self.attack_dammage
         reward = opponent_carrying
@@ -113,27 +113,27 @@ class MyBot(Bot):
         for pos, ml in self.junks.items():
             if best["pos"] is (-1,-1):
                 best["pos"] = pos
-                best["reward"] = find_reward_per_junk(ch_state, pos, ml)
+                best["reward"] = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
             else:
-                reward = find_reward_per_junk(ch_state, pos, ml)
+                reward = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
                 if reward > best["reward"]:
                     best["pos"] = pos
                     best["reward"] = reward
-        return best
+        return best["pos"]
 
     def find_reward_per_junk(self, ch_state, junk_position, junk_average):
-        nb_tours = distance_between_two_points(ch_state['location'], junk_position)
+        nb_tours = self.distance_between_two_points(ch_state['location'], junk_position)
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
-        distance_to_base = distance_between_two_points(junk_position, ch_state['base'])
-        while not should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
+        distance_to_base = self.distance_between_two_points(junk_position, ch_state['base'])
+        while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
             current_sim_gain += junk_average
             nb_tours += 1
             current_sim_turn += 1
             current_sim_health -= self.risk_of_injury
         nb_tours +=  distance_to_base + 1
-        return current_gain / nb_tours
+        return current_sim_gain / nb_tours
 
 
     def distance_between_two_points(self, a, b):
