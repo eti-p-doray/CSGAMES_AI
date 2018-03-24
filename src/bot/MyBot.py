@@ -46,8 +46,8 @@ class MyBot(Bot):
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
-        self.capacity = 150
-        self.risk_health = 30
+        self.capacity = 500
+        self.risk_health = 40
 
 
     def get_name(self):
