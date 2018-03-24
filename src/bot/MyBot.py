@@ -43,6 +43,7 @@ class MyBot(Bot):
         self.risk_of_injury = 0.02
         self.respawn_time = 10
         self.healing_speed = 10
+        self.attack_dammage = 10
 
     def get_name(self):
         # Find a name for your bot
@@ -61,11 +62,28 @@ class MyBot(Bot):
                 (100 - character_health) / self.healing_speed)
         return total_risk > loss
 
+
+    def attack_opponent_utility(self,
+            character_health, character_carrying,
+            opponent_health, opponent_carrying,
+            distance_to_opponent):
+        if character_health <= opponent_health
+            return 0
+        loss = distance_to_opponent + opponent_health / self.attack_dammage
+        reward = opponent_carrying
+        return reward - loss * self.reward_expectation
+
     def turn(self, game_state, character_state, other_bots):
         # Your bot logic goes here
         super().turn(game_state, character_state, other_bots)
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
+
+        if character_state['location'] == character_state['base']:
+            if character_state['carrying'] != 0:
+                return self.commands.store()
+            if character_state['health'] != 100:
+                return self.commands.rest()
 
         self.closest_ressource = self.find_closest_ressource(character_state)
 
