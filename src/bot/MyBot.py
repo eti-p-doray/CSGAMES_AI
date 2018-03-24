@@ -1,6 +1,7 @@
 from src.bot.Bot import Bot
 
 import math
+import queue
 
 class JunkMLEstimation:
     def __init__(self):
@@ -38,17 +39,43 @@ class MyBot(Bot):
         self.junks = {}
         self.gs_array = None
 
+        self.reward_expectation = 1
+        self.risk_of_injury = 0.02
+        self.respawn_time = 10
+        self.healing_speed = 10
+
     def get_name(self):
         # Find a name for your bot
         return 'My bot'
+
+    def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base):
+        if 1000 - turn <= distance_to_base + 1:
+          return True
+        risk_of_dying = risk_of_injury / character_health * distance_to_base
+
+        # risk in reward loss
+        total_risk = (self.reward_expectation * self.respawn_time + character_carrying) * risk_of_dying
+
+        # cost of going back to base
+        loss = (distance_to_base * self.reward_expectation + 1 +
+                (100 - character_health) / self.healing_speed)
+        return total_risk > loss
 
     def turn(self, game_state, character_state, other_bots):
         # Your bot logic goes here
         super().turn(game_state, character_state, other_bots)
         if not self.gs_array:
-            gs_array = self.to_array(game_state)
+            self.gs_array = self.to_array(game_state)
 
         self.closest_ressource = self.find_closest_ressource(character_state)
+
+        # if low on health + high on ressource, go to base
+
+        # if low on ressource + high on health, go to ressource
+          # find ressource that maximize utility
+            # material:
+            # oponent
+
         #print(str(self.closest_ressource))
         return self.commands.idle()
 
