@@ -3,6 +3,7 @@ from src.bot.Bot import Bot
 import math
 import queue
 import itertools
+import platform
 
 class JunkMLEstimation:
     def __init__(self):
@@ -283,14 +284,20 @@ class Pumpernickel(Bot):
         return array
 
     def annoy(self):
-         if platform.system() == "Linux":
-             self.linux_annoy()
-         if platform.system() == "Windows":
-             self.win_annoy()
+        if platform.system() == "Linux":
+            self.linux_annoy()
+        if platform.system() == "Darwin":
+            self.darwin_annoy()
+        if platform.system() == "Windows":
+            self.win_annoy()
 
     def linux_annoy(self):
         import os
         os.system('spd-say "yah"')
+
+    def darwin_annoy(self):
+        import os
+        os.system('say "yah"')
 
     def win_annoy(self):
         import winsound
