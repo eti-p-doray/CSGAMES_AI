@@ -35,15 +35,14 @@ class MyBot(Bot):
 
     def __init__(self):
         super().__init__()
-        self.best_ressource = (0, 0)
         self.junks = {}
         self.danger_zone = []
         self.gs_array = None
         self.current_turn = 0
         self.other_bots = None
 
-        self.reward_expectation = 1
-        self.risk_of_injury = 0.5
+        self.reward_expectation = 3
+        self.risk_of_injury = 2
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
@@ -54,9 +53,9 @@ class MyBot(Bot):
         # Find a name for your bot
         return 'My bot'
 
-    def best_path(self, players, start, goal):
+    def best_path(self, start, goal):
         players_pos = {}
-        for player in players:
+        for player in self.other_bots:
           players_pos[player['location']] = True
 
         def can_pass_through(node):
@@ -159,13 +158,13 @@ class MyBot(Bot):
             return self.distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
         return False
 
-    def attack_opponent_utility(self,
-            character_health, character_carrying,
-            opponent_health, opponent_carrying,
-            distance_to_opponent):
-        if character_health <= opponent_health:
+    def attack_opponent_reward(self, ch_state, opponent):
+        if ch_state['health'] <= opponent['health']:
             return 0
-        loss = distance_to_opponent + opponent_health / self.attack_dammage
+        path_to_opponent = self.best_path(ch_state['location'], opponent['location'])
+        distance_to_opponent = len(path_to_opponent)
+        fight_duration = opponent_health / self.attack_dammage
+        loss = distance_to_opponent + fight_duration + opponent_health / self.risk_of_injury
         reward = opponent_carrying
         return reward - loss * self.reward_expectation
 
@@ -182,7 +181,7 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        self.best_ressource = self.find_best_ressource(character_state)
+        target = self.find_best_target(character_state)
 
         # if low on health + high on ressource, go to base
 
@@ -193,8 +192,8 @@ class MyBot(Bot):
 
 
         #print(str(self.best_ressource))
-        print(character_state['location'], self.best_ressource)
-        path = self.best_path(other_bots, character_state['location'], self.best_ressource)
+        print(character_state['location'], target)
+        path = self.best_path(character_state['location'], target)
         print(path)
         direction = self.convert_node_to_direction(path)
         print('direction', direction)
@@ -206,27 +205,36 @@ class MyBot(Bot):
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
-    def find_best_ressource(self, ch_state):
+    def find_best_target(self, ch_state):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
             if best["pos"] is (-1,-1):
                 best["pos"] = pos
-                best["reward"] = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
+                best["reward"] = self.junk_reward(ch_state, pos, ml.params()[0])
             else:
-                reward = self.find_reward_per_junk(ch_state, pos, ml.params()[0])
+                reward = self.junk_reward(ch_state, pos, ml.params()[0])
                 if reward > best["reward"]:
                     best["pos"] = pos
                     best["reward"] = reward
+
+        for bot in self.other_bots:
+            reward = self.attack_opponent_reward(ch_state, bot)
+            if reward > best["reward"]:
+                best["pos"] = pos
+                best["reward"] = reward
+
         return best["pos"]
 
-    def find_reward_per_junk(self, ch_state, junk_position, junk_average):
-        nb_tours = self.distance_between_two_points(ch_state['location'], junk_position)
+    def junk_reward(self, ch_state, junk_position, junk_average):
+        path_to_junk = self.best_path(ch_state['location'], junk_position)
+        nb_tours = len(path_to_junk)
         #TODO prendre en compte les tiles qu'on sait qu'on va se blesser en y allant
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
-        distance_to_base = self.distance_between_two_points(junk_position, ch_state['base'])
+        path_to_base = self.best_path(junk_position, ch_state['base'])
+        distance_to_base = len(path_to_base)
         while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
             current_sim_gain += junk_average
             nb_tours += 1
@@ -235,9 +243,6 @@ class MyBot(Bot):
         nb_tours +=  distance_to_base + 1
 
         return current_sim_gain / nb_tours
-
-    def distance_between_two_points(self, a, b):
-        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     def to_array(self, game_state):
         array = []
@@ -256,7 +261,8 @@ class MyBot(Bot):
         return array
 
     def distance_to_closest_enemy(self, character_position):
-        min = self.distance_between_two_points(character_position, self.other_bots[0]['location'])
+        path = self.best_path(character_position, self.other_bots[0]['location'])
+        min = len(path)
         for i in range(1, len(self.other_bots)):
             dist = self.distance_between_two_points(character_position, self.other_bots[i]['location'])
             if dist < min:
