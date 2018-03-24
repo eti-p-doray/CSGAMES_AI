@@ -108,8 +108,8 @@ class MyBot(Bot):
 
         return list(reversed(path))
 
-    def path_distance(self, players, start, goal):
-        path = self.best_path(players, start, goal)
+    def path_distance(self, start, goal):
+        path = self.best_path(start, goal)
         return len(path)
 
     @staticmethod
@@ -139,8 +139,9 @@ class MyBot(Bot):
         # cost of going back to base
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
-
-        return total_risk > loss
+        #print(total_risk, loss)
+        #return total_risk > loss
+        return character_carrying > 150 or character_health < 30
 
     # To check, might fuck things up because it is coming back with health lower than 0 or something
     def should_presently_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
@@ -166,7 +167,13 @@ class MyBot(Bot):
         fight_duration = opponent_health / self.attack_dammage
         loss = distance_to_opponent + fight_duration + opponent_health / self.risk_of_injury
         reward = opponent_carrying
-        return reward - loss * self.reward_expectation
+        return 0#reward - loss * self.reward_expectation
+
+
+    def neighbor(self, ch_pos, other):
+        dx = abs(ch_pos[0] - other[0])
+        dy = abs(ch_pos[1] - other[1])
+        return (dx == 0 and dy == 1 or dx == 1 and dy == 0)
 
     def turn(self, game_state, character_state, other_bots):
         self.other_bots = other_bots
@@ -181,31 +188,39 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        target = self.find_best_target(character_state)
-
-        # if low on health + high on ressource, go to base
-
-        # if low on ressource + high on health, go to ressource
-          # find ressource that maximize utility
-            # material:
-            # oponent
-
-
-        #print(str(self.best_ressource))
-        print(character_state['location'], target)
-        path = self.best_path(character_state['location'], target)
-        print(path)
-        direction = self.convert_node_to_direction(path)
-        print('direction', direction)
-        if direction:
+        path_to_base = self.best_path(character_state['location'], character_state['base'])
+        if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base)):
+            print("Return to base")
+            direction = self.convert_node_to_direction(path_to_base)
             return self.commands.move(direction)
+
+        ressource = self.find_best_ressource(character_state)
+        victim = self.find_best_victim(character_state, other_bots)
+
+        if ressource['reward'] > victim['reward']:
+            print("Farming")
+            if character_state['location'] == ressource['pos']:
+                return self.commands.collect()
+            else:
+                path = self.best_path(character_state['location'], ressource['pos'])
+                direction = self.convert_node_to_direction(path)
+                return self.commands.move(direction)
         else:
-            return self.commands.idle()
+            print("Attacking")
+            victim_location = other_bots[victim['idx']]['location']
+            if self.neighbor(character_state['location'], victim_location):
+                direction = self.convert_node_to_direction([character_state['location'], victim_location])
+            else:
+                path = self.best_path(character_state['location'], victim_location)
+                direction = self.convert_node_to_direction(path)
+                return self.commands.move(direction)
+
+        return self.commands.idle()
 
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
-    def find_best_target(self, ch_state):
+    def find_best_ressource(self, ch_state):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
@@ -224,7 +239,18 @@ class MyBot(Bot):
                 best["pos"] = pos
                 best["reward"] = reward
 
-        return best["pos"]
+        return best
+
+    def find_best_victim(self, ch_state, other_bots):
+        best = {"idx":0, "reward":0}
+
+        for i, bot in enumerate(other_bots):
+            reward = self.attack_opponent_reward(ch_state, bot)
+            if reward > best["reward"]:
+                best["idx"] = i
+                best["reward"] = reward
+
+        return best
 
     def junk_reward(self, ch_state, junk_position, junk_average):
         path_to_junk = self.best_path(ch_state['location'], junk_position)
