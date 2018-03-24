@@ -66,6 +66,8 @@ class MyBot(Bot):
 
     def get_name(self):
         # Find a name for your bot
+        # Mayer, Charlotte (2015). Types of Bread to Name Your Child After. Found at
+        # http://reductress.com/post/types-of-bread-to-name-your-child-after/
         return 'Pumpernickel'
 
     def best_path(self, character_health, character_carrying, start, goal):
