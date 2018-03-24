@@ -66,7 +66,7 @@ class MyBot(Bot):
 
     def get_name(self):
         # Find a name for your bot
-        return 'My bot'
+        return 'Pumpernickel'
 
     def best_path(self, character_health, character_carrying, start, goal):
         players_by_pos = {}
