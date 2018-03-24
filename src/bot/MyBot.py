@@ -42,7 +42,7 @@ class MyBot(Bot):
         self.other_bots = None
         self.last_action = "idle"
 
-        self.risk_of_injury = 2
+        self.risk_of_injury = 4
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
