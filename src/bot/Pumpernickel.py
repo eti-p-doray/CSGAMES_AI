@@ -60,7 +60,7 @@ class Pumpernickel(Bot):
         self.attack_dammage = 10
 
         # Adjustable
-        self.capacity = 500
+        self.capacity = 1000
         self.average_reward = 4
         self.risk_of_injury = 4
         self.risk_health = 11
