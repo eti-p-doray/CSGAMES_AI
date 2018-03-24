@@ -204,9 +204,9 @@ class Pumpernickel(Bot):
             return self.commands.collect()
         else:
             path = self.best_path(character_state['health'], character_state['carrying'], character_state['location'], ressource['pos'])
+            direction = self.convert_node_to_direction(path)
             if path[1] in self.players_by_pos:
                 return self.commands.attack(direction)
-            direction = self.convert_node_to_direction(path)
             return self.commands.move(direction)
 
         return self.commands.idle()
