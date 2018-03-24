@@ -109,10 +109,6 @@ class MyBot(Bot):
 
         return list(reversed(path))
 
-    def path_distance(self, start, goal):
-        path = self.best_path(start, goal)
-        return len(path)
-
     @staticmethod
     def convert_node_to_direction(path):
         if path is None or len(path) < 2:
@@ -130,8 +126,10 @@ class MyBot(Bot):
             return 'S'
 
     def should_return_to_base(self, turn, character_health, character_carrying, distance_to_base):
-        if 1000 - turn <= distance_to_base + 1:
+        """if 1000 - turn <= distance_to_base + 1:
           return True
+        if character_health == 0:
+            return True
         risk_of_dying = self.risk_of_injury / character_health * distance_to_base
 
         # risk in reward loss
@@ -141,12 +139,15 @@ class MyBot(Bot):
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
         #print(total_risk, loss)
-        return total_risk > loss
+        return total_risk > loss"""
+        return character_health < 30 or character_carrying > 150
 
     # To check, might fuck things up because it is coming back with health lower than 0 or something
     def should_presently_return_to_base(self, turn, character_health, character_carrying, distance_to_base, character_position):
         if 1000 - turn <= distance_to_base + 1:
-          return True
+            return True
+        if character_health == 0:
+            return True
         risk_of_dying = self.risk_of_injury / character_health * distance_to_base
 
         # risk in reward loss
@@ -156,18 +157,20 @@ class MyBot(Bot):
         loss = (distance_to_base * self.reward_expectation + 1 +
                 (100 - character_health) / self.healing_speed)
         if total_risk > loss:
-            return self.distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
+            return True#self.distance_to_closest_enemy(character_position) <= self.enemy_distance_to_flee
         return False
 
     def attack_opponent_reward(self, ch_state, opponent):
-        if ch_state['health'] <= opponent['health']:
+        if ch_state['health'] < opponent['health']:
             return 0
         path_to_opponent = self.best_path(ch_state['location'], opponent['location'])
+        if path_to_opponent is None:
+            return 0
         distance_to_opponent = len(path_to_opponent)
-        fight_duration = opponent_health / self.attack_dammage
-        loss = distance_to_opponent + fight_duration + opponent_health / self.risk_of_injury
-        reward = opponent_carrying
-        return 0#reward - loss * self.reward_expectation
+        fight_duration = opponent['health'] / self.attack_dammage
+        loss = distance_to_opponent + fight_duration
+        reward = opponent['carrying']
+        return reward - loss * self.reward_expectation
 
 
     def neighbor(self, ch_pos, other):
@@ -193,7 +196,7 @@ class MyBot(Bot):
                 return self.commands.rest()
 
         path_to_base = self.best_path(character_state['location'], character_state['base'])
-        if self.should_presently_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base), character_state['location']):
+        if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base)):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
             self.last_action = "move"
@@ -202,17 +205,18 @@ class MyBot(Bot):
         ressource = self.find_best_ressource(character_state)
         victim = self.find_best_victim(character_state, other_bots)
 
-        if ressource['reward'] > victim['reward']:
-            print("Farming")
-            if character_state['location'] == ressource['pos']:
-                self.last_action = "collect"
-                return self.commands.collect()
-            else:
-                path = self.best_path(character_state['location'], ressource['pos'])
-                direction = self.convert_node_to_direction(path)
-                self.last_action = "move"
-                return self.commands.move(direction)
-        elif victim['reward'] > 10:
+        #if ressource['reward'] > 0:
+        print("Farming")
+        if character_state['location'] == ressource['pos']:
+            self.last_action = "collect"
+            return self.commands.collect()
+        else:
+            path = self.best_path(character_state['location'], ressource['pos'])
+            direction = self.convert_node_to_direction(path)
+            self.last_action = "move"
+            return self.commands.move(direction)
+
+        """elif victim['reward'] > 10:
             print("Attacking")
             victim_location = other_bots[victim['idx']]['location']
             if self.neighbor(character_state['location'], victim_location):
@@ -220,13 +224,7 @@ class MyBot(Bot):
             else:
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
-                self.last_action = "move"
-                return self.commands.move(direction)
-
-        else:
-            direction = self.convert_node_to_direction(path_to_base)
-            self.last_action = "move"
-            return self.commands.move(direction)
+                return self.commands.move(direction)"""
 
         self.last_action = "idle"
         return self.commands.idle()
@@ -241,27 +239,17 @@ class MyBot(Bot):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
-            if best["pos"] is (-1,-1):
-                best["pos"] = pos
-                best["reward"] = self.junk_reward(ch_state, pos, ml.params()[0])
-            else:
-                reward = self.junk_reward(ch_state, pos, ml.params()[0])
-                if reward > best["reward"]:
-                    if not self.is_tile_occupied(pos):
-                        best["pos"] = pos
-                        best["reward"] = reward
-
-        for bot in self.other_bots:
-            reward = self.attack_opponent_reward(ch_state, bot)
-            if reward > best["reward"]:
-                best["pos"] = pos
-                best["reward"] = reward
+            reward = self.junk_reward(ch_state, pos, ml.params()[0])
+            if best["pos"] == (-1,-1) or reward > best["reward"]:
+                if not self.is_tile_occupied(pos):
+                    best["pos"] = pos
+                    best["reward"] = reward
 
         return best
 
     def is_tile_occupied(self, tile_position):
         for player in self.other_bots:
-            if player["location"] is tile_position:
+            if player["location"] == tile_position:
                 return True
         return False
 
@@ -278,12 +266,16 @@ class MyBot(Bot):
 
     def junk_reward(self, ch_state, junk_position, junk_average):
         path_to_junk = self.best_path(ch_state['location'], junk_position)
+        if path_to_junk is None:
+          return 0
         nb_tours = len(path_to_junk)
         #TODO prendre en compte les tiles qu'on sait qu'on va se blesser en y allant
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
         path_to_base = self.best_path(junk_position, ch_state['base'])
+        if path_to_base is None:
+          return 0
         distance_to_base = len(path_to_base)
         while not self.should_return_to_base(current_sim_turn, current_sim_health, current_sim_gain + ch_state['carrying'], distance_to_base):
             current_sim_gain += junk_average
@@ -312,6 +304,8 @@ class MyBot(Bot):
 
     def distance_to_closest_enemy(self, character_position):
         path = self.best_path(character_position, self.other_bots[0]['location'])
+        if path is None:
+          return 1000000
         min = len(path)
         for i in range(1, len(self.other_bots)):
             dist = self.distance_between_two_points(character_position, self.other_bots[i]['location'])
