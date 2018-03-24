@@ -197,6 +197,10 @@ class Pumpernickel(Bot):
             if reward is not None and reward > ressource['reward']:
                 print("Attacking")
                 direction = self.convert_node_to_direction([character_state['location'], opponent['location']])
+                try:
+                    self.annoy()
+                except:
+                    print("muted :(")
                 return self.commands.attack(direction)
 
         print("Farming")
@@ -277,3 +281,19 @@ class Pumpernickel(Bot):
                 array.append([])
                 i += 1
         return array
+
+    def annoy(self):
+         if platform.system() == "Linux":
+             self.linux_annoy()
+         if platform.system() == "Windows":
+             self.win_annoy()
+
+    def linux_annoy(self):
+        import os
+        os.system('spd-say "yah"')
+
+    def win_annoy(self):
+        import winsound
+        duration = 1000  # millisecond
+        freq = 440  # Hz
+        winsound.Beep(freq, duration)
