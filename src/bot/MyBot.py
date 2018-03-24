@@ -40,6 +40,7 @@ class MyBot(Bot):
         self.gs_array = None
         self.current_turn = 0
         self.other_bots = None
+        self.last_action = "idle"
 
         self.reward_expectation = 3
         self.risk_of_injury = 2
@@ -184,14 +185,17 @@ class MyBot(Bot):
 
         if character_state['location'] == character_state['base']:
             if character_state['carrying'] != 0:
+                self.last_action = "store"
                 return self.commands.store()
             if character_state['health'] != 100:
+                self.last_action = "rest"
                 return self.commands.rest()
 
         path_to_base = self.best_path(character_state['location'], character_state['base'])
         if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base)):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
+            self.last_action = "move"
             return self.commands.move(direction)
 
         ressource = self.find_best_ressource(character_state)
@@ -200,10 +204,12 @@ class MyBot(Bot):
         if ressource['reward'] > victim['reward']:
             print("Farming")
             if character_state['location'] == ressource['pos']:
+                self.last_action = "collect"
                 return self.commands.collect()
             else:
                 path = self.best_path(character_state['location'], ressource['pos'])
                 direction = self.convert_node_to_direction(path)
+                self.last_action = "move"
                 return self.commands.move(direction)
         else:
             print("Attacking")
@@ -213,8 +219,10 @@ class MyBot(Bot):
             else:
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
+                self.last_action = "move"
                 return self.commands.move(direction)
 
+        self.last_action = "idle"
         return self.commands.idle()
 
 
@@ -230,8 +238,9 @@ class MyBot(Bot):
             else:
                 reward = self.junk_reward(ch_state, pos, ml.params()[0])
                 if reward > best["reward"]:
-                    best["pos"] = pos
-                    best["reward"] = reward
+                    if not is_tile_occupied(pos):
+                        best["pos"] = pos
+                        best["reward"] = reward
 
         for bot in self.other_bots:
             reward = self.attack_opponent_reward(ch_state, bot)
@@ -240,6 +249,12 @@ class MyBot(Bot):
                 best["reward"] = reward
 
         return best
+
+    def is_tile_occupied(self, tile_position):
+        for player in other_bots:
+            if player["location"] is tile_position:
+                return True
+        return False
 
     def find_best_victim(self, ch_state, other_bots):
         best = {"idx":0, "reward":0}
