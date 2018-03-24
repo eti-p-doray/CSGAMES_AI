@@ -212,7 +212,7 @@ class MyBot(Bot):
                 direction = self.convert_node_to_direction(path)
                 self.last_action = "move"
                 return self.commands.move(direction)
-        elif victim['reward'] > 10:
+        """elif victim['reward'] > 10:
             print("Attacking")
             victim_location = other_bots[victim['idx']]['location']
             if self.neighbor(character_state['location'], victim_location):
@@ -221,7 +221,7 @@ class MyBot(Bot):
                 path = self.best_path(character_state['location'], victim_location)
                 direction = self.convert_node_to_direction(path)
                 self.last_action = "move"
-                return self.commands.move(direction)
+                return self.commands.move(direction)"""
 
         else:
             direction = self.convert_node_to_direction(path_to_base)
