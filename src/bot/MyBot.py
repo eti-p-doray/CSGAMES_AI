@@ -180,9 +180,8 @@ class MyBot(Bot):
             if reward is not None and reward > ressource['reward']:
                 direction = self.convert_node_to_direction([character_state['location'], opponent['location']])
                 self.last_action = "attack"
-                self.commands.attack(direction)
+                return self.commands.attack(direction)
 
-        #if ressource['reward'] > 0:
         print("Farming")
         if character_state['location'] == ressource['pos']:
             self.last_action = "collect"
