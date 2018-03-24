@@ -59,6 +59,7 @@ class MyBot(Bot):
         self.respawn_time = 10
         self.healing_speed = 10
         self.attack_dammage = 10
+        self.average_reward = 8
         self.capacity = 500
         self.risk_health = 11
 
@@ -67,27 +68,33 @@ class MyBot(Bot):
         # Find a name for your bot
         return 'My bot'
 
-    def best_path(self, start, goal):
-        players_pos = {}
+    def best_path(self, character_health, character_carrying, start, goal):
+        players_by_pos = {}
         for player in self.other_bots:
-          players_pos[player['location']] = True
+          players_by_pos[player['location']] = player
 
         def can_pass_through(node):
             symbol = self.gs_array[node[0]][node[1]]
-            return (symbol == '0' or symbol == 'S' or symbol == 'J') and not (node in players_pos)
+            return (symbol == '0' or symbol == 'S' or symbol == 'J')
 
-        def symbol_weight(node):
+        def symbol_weight(current_ch_health, node):
+            weight = 0
+            if node in players_by_pos:
+                fight_duration = players_by_pos[node]['health'] / self.attack_dammage
+                weight += fight_duration
+                if character_health < players_by_pos[node]['health']:
+                    weight += self.respawn_time + character_carrying / self.average_reward
             symbol = self.gs_array[node[0]][node[1]]
             if symbol == 'S':
-                return 10 / self.risk_of_injury
-            return 1
+                weight += 100 / current_ch_health
+            return 1 + weight
 
         q = queue.PriorityQueue()
-        q.put((0, start, None))
+        q.put((0, start, None, character_health))
         visited = {}
         node = None
         while not q.empty():
-            priority, node, previous = q.get()
+            priority, node, previous, current_ch_health = q.get()
             if node in visited:
                 continue
             visited[node] = previous
@@ -109,8 +116,11 @@ class MyBot(Bot):
                 if next_node in visited:
                     continue
                 if can_pass_through(next_node) or next_node == goal:
-                    next_priority = priority + symbol_weight(next_node)
-                    q.put((next_priority, next_node, node))
+                    next_priority = priority + symbol_weight(current_ch_health, next_node)
+                    next_ch_health = current_ch_health
+                    if self.gs_array[next_node[0]][next_node[1]] == 'S':
+                        next_ch_health -= 10
+                    q.put((next_priority, next_node, node, next_ch_health))
 
         if node is None or node != goal:
             return None
@@ -170,7 +180,7 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        path_to_base = self.best_path(character_state['location'], character_state['base'])
+        path_to_base = self.best_path(character_state['health'], character_state['carrying'], character_state['location'], character_state['base'])
         if self.should_return_to_base(self.current_turn, character_state['health'], character_state['carrying'], len(path_to_base), character_state['location']):
             print("Return to base")
             direction = self.convert_node_to_direction(path_to_base)
@@ -189,7 +199,7 @@ class MyBot(Bot):
         if character_state['location'] == ressource['pos']:
             return self.commands.collect()
         else:
-            path = self.best_path(character_state['location'], ressource['pos'])
+            path = self.best_path(character_state['health'], character_state['carrying'], character_state['location'], ressource['pos'])
             direction = self.convert_node_to_direction(path)
             return self.commands.move(direction)
 
@@ -229,20 +239,20 @@ class MyBot(Bot):
         return False
 
     def junk_reward(self, ch_state, junk_position, junk_average):
-        path_to_junk = self.best_path(ch_state['location'], junk_position)
+        path_to_junk = self.best_path(ch_state['health'], ch_state['carrying'], ch_state['location'], junk_position)
         if path_to_junk is None:
           return 0
         nb_tours = len(path_to_junk)
         #TODO prendre en compte les tiles qu'on sait qu'on va se blesser en y allant
-        current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
         current_sim_gain = 0
         current_sim_turn = self.current_turn + nb_tours
-        path_to_base = self.best_path(junk_position, ch_state['base'])
+        current_sim_gain += self.capacity
+        nb_tours += self.capacity / junk_average
+        current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
+        path_to_base = self.best_path(current_sim_health, current_sim_gain + ch_state['carrying'], junk_position, ch_state['base'])
         if path_to_base is None:
           return 0
         distance_to_base = len(path_to_base)
-        current_sim_gain += self.capacity
-        nb_tours += self.capacity / junk_average
         nb_tours +=  distance_to_base + 1
         return current_sim_gain / nb_tours
 
@@ -261,14 +271,3 @@ class MyBot(Bot):
                 array.append([])
                 i += 1
         return array
-
-    def distance_to_closest_enemy(self, character_position):
-        path = self.best_path(character_position, self.other_bots[0]['location'])
-        if path is None:
-          return 1000000
-        min = len(path)
-        for i in range(1, len(self.other_bots)):
-            dist = self.distance_between_two_points(character_position, self.other_bots[i]['location'])
-            if dist < min:
-                min = dist
-        return min
