@@ -207,7 +207,7 @@ class MyBot(Bot):
         for pos, ml in self.junks.items():
             reward = self.junk_reward(ch_state, pos, ml.params()[0])
             if best["pos"] == (-1,-1) or (reward > best["reward"]):
-                if not self.is_tile_occupied(pos):
+                if not self.is_tile_occupied(pos, ch_state):
                     best["pos"] = pos
                     best["reward"] = reward
 
@@ -220,9 +220,10 @@ class MyBot(Bot):
 
         return best
 
-    def is_tile_occupied(self, tile_position):
+    def is_tile_occupied(self, tile_position, ch_state):
         for player in self.other_bots:
-            if player["location"] == tile_position:
+            if (player["location"] == tile_position and
+               player["health"] + self.risk_health >= ch_state["health"]):
                 return True
         return False
 
