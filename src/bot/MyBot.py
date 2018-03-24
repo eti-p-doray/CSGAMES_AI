@@ -60,7 +60,7 @@ class MyBot(Bot):
         self.healing_speed = 10
         self.attack_dammage = 10
         self.capacity = 500
-        self.risk_health = 41
+        self.risk_health = 11
 
 
     def get_name(self):
@@ -155,6 +155,7 @@ class MyBot(Bot):
         self.current_turn += 1
         if not self.gs_array:
             self.gs_array = self.to_array(game_state)
+            self.risk_health += min(10 * len(other_bots), 41)
             for player in itertools.chain([character_state], other_bots):
                 self.player_eavesdrops[player['id']] = PlayerEavesdrop()
 
