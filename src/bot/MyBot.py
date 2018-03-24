@@ -35,7 +35,6 @@ class MyBot(Bot):
 
     def __init__(self):
         super().__init__()
-        self.best_ressource = (0, 0)
         self.junks = {}
         self.danger_zone = []
         self.gs_array = None
@@ -141,13 +140,13 @@ class MyBot(Bot):
         return total_risk > loss
 
 
-    def attack_opponent_utility(self,
-            character_health, character_carrying,
-            opponent_health, opponent_carrying,
-            distance_to_opponent):
-        if character_health <= opponent_health:
+    def attack_opponent_reward(self, ch_state, opponent):
+        if ch_state['health'] <= opponent['health']:
             return 0
-        loss = distance_to_opponent + opponent_health / self.attack_dammage
+        path_to_opponent = self.best_path(ch_state['location'], opponent['location'])
+        distance_to_opponent = len(path_to_opponent)
+        fight_duration = opponent_health / self.attack_dammage
+        loss = distance_to_opponent + fight_duration + opponent_health / self.risk_of_injury
         reward = opponent_carrying
         return reward - loss * self.reward_expectation
 
@@ -163,7 +162,7 @@ class MyBot(Bot):
             if character_state['health'] != 100:
                 return self.commands.rest()
 
-        self.best_ressource = self.find_best_ressource(character_state, other_bots)
+        target = self.find_best_target(character_state, other_bots)
 
         # if low on health + high on ressource, go to base
 
@@ -174,8 +173,8 @@ class MyBot(Bot):
 
 
         #print(str(self.best_ressource))
-        print(character_state['location'], self.best_ressource)
-        path = self.best_path(other_bots, character_state['location'], self.best_ressource)
+        print(character_state['location'], target)
+        path = self.best_path(other_bots, character_state['location'], target)
         print(path)
         direction = self.convert_node_to_direction(path)
         print('direction', direction)
@@ -187,21 +186,28 @@ class MyBot(Bot):
 
 #(y,x)
 #{'location': (7, 1), 'carrying': 0, 'health': 100, 'name': 'My bot', 'points': 0, 'spawn': 0, 'status': 'alive', 'base': (7, 1), 'id': 1}
-    def find_best_ressource(self, ch_state, other_bots):
+    def find_best_target(self, ch_state, other_bots):
         best = {"pos":(-1,-1), "reward":0}
 
         for pos, ml in self.junks.items():
             if best["pos"] is (-1,-1):
                 best["pos"] = pos
-                best["reward"] = self.find_reward_per_junk(ch_state, other_bots, pos, ml.params()[0])
+                best["reward"] = self.junk_reward(ch_state, other_bots, pos, ml.params()[0])
             else:
-                reward = self.find_reward_per_junk(ch_state, other_bots, pos, ml.params()[0])
+                reward = self.junk_reward(ch_state, other_bots, pos, ml.params()[0])
                 if reward > best["reward"]:
                     best["pos"] = pos
                     best["reward"] = reward
+
+        for bot in other_bots:
+            reward = self.attack_opponent_reward(ch_state, bot)
+            if reward > best["reward"]:
+                best["pos"] = pos
+                best["reward"] = reward
+
         return best["pos"]
 
-    def find_reward_per_junk(self, ch_state, other_bots, junk_position, junk_average):
+    def junk_reward(self, ch_state, other_bots, junk_position, junk_average):
         path_to_junk = self.best_path(other_bots, ch_state['location'], junk_position)
         nb_tours = len(path_to_junk)
         current_sim_health = ch_state['health'] - nb_tours * self.risk_of_injury
