@@ -190,8 +190,6 @@ class MyBot(Bot):
     def attack_opponent_reward(self, ch_state, victim):
         if not self.neighbor(ch_state['location'], victim['location']):
             return None
-        if victim['health'] > ch_state['health']:
-            return None
         fight_duration = victim['health'] / self.attack_dammage
         reward = victim['carrying'] / fight_duration
         return reward
